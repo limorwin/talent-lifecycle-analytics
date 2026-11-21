@@ -1,0 +1,15 @@
+name: talent-analytics
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.12
+  - pandas
+  - numpy
+  - streamlit
+  - altair
+  - matplotlib
+  - jupyterlab
+  - ipykernel
+  - pytest
