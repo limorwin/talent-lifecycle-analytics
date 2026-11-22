@@ -31,3 +31,14 @@ CREATE TABLE IF NOT EXISTS applications (
     FOREIGN KEY (job_id)
         REFERENCES jobs(job_id)
 );
+
+CREATE TABLE IF NOT EXISTS stage_events (
+    event_id INTEGER PRIMARY KEY,
+    application_id INTEGER NOT NULL,
+    stage TEXT NOT NULL
+        CHECK (stage IN ('Applied', 'Screening', 'Interview', 'Offer', 'Hired')),
+    entered_at TEXT NOT NULL,
+
+    FOREIGN KEY (application_id)
+        REFERENCES applications(application_id)
+);

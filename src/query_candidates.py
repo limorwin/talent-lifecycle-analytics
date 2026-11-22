@@ -11,7 +11,7 @@ SQL_PATH = (
     PROJECT_ROOT
     / "sql"
     / "analytics"
-    / "applications_by_department_source.sql"
+    / "average_stage_durations.sql"
 )
 
 # Read the SQL query from a file
