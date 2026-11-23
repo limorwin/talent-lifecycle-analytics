@@ -7,6 +7,8 @@ import pandas as pd
 import streamlit as st
 import altair as alt
 
+from ai_assistant import generate_sql, execute_read_only_query, explain_results
+
 st.set_page_config(
     page_title="Talent Acquisition Analytics",
     page_icon="📊",
@@ -518,22 +520,20 @@ with left_col:
         }
     )
 
+    funnel_display["Conversion Rate (%)"] = (
+        funnel_display["Conversion Rate (%)"]
+        .apply(lambda x: f"{float(x):.1f}%" if pd.notna(x) else "—")
+    )
+
     def highlight_stage(row):
         if row["Stage"] in selected_stages:
             return ["background-color: #FFF3CD"] * len(row)
         return [""] * len(row)
     with st.expander("View funnel details"):
         st.dataframe(
-            funnel_display.style
-                .apply(highlight_stage, axis=1)
-                .format({
-                    "Conversion Rate (%)": lambda x: (
-                        f"{x:.1f}%" if pd.notna(x) else "—"
-                    )
-                }),
+            funnel_display,
             hide_index=True,
-            width="stretch",
-            height="content"
+            use_container_width=True
         )
 
 with right_col:
@@ -586,10 +586,16 @@ with right_col:
         }
     )
 
+    source_display["Hire Rate (%)"] = (
+        source_display["Hire Rate (%)"]
+        .apply(lambda x: f"{float(x):.1f}%" if pd.notna(x) else "—")
+    )
+
     with st.expander("View source details"):
         st.dataframe(
             source_display,
             hide_index=True,
+            use_container_width=True,
             width="stretch",
             height="content"
         )
@@ -625,3 +631,89 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     icon=":material/download:"
 )
+
+
+
+# AI Analytics Assistant
+st.divider()
+st.header("AI Recruitment Analytics Assistant")
+
+MAX_QUESTIONS = 10
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if st.button("Clear conversation", icon=":material/delete_outline:"):
+    st.session_state.chat_history = []
+    st.session_state.ai_questions_used = 0
+    st.rerun()
+
+if "ai_questions_used" not in st.session_state:
+    st.session_state.ai_questions_used = 0
+
+st.caption(
+    f"Ask questions about recruitment data. "
+    f"{st.session_state.ai_questions_used}/{MAX_QUESTIONS} "
+    "AI questions used this session."
+)
+
+# Display chat history
+for message in st.session_state.chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+        if message.get("data") is not None:
+            st.dataframe(message["data"], hide_index=True, use_container_width=True)
+
+        if "sql" in message:
+            with st.expander("View SQL"):
+                st.code(message["sql"], language="sql")
+
+question = st.chat_input(
+    "Ask a recruitment analytics question...",
+    disabled=st.session_state.ai_questions_used >= MAX_QUESTIONS
+)
+
+if question:
+    st.session_state.chat_history.append({
+        "role": "user",
+        "content": question
+    })
+
+    with st.chat_message("user"):
+        st.write(question)
+
+    st.session_state.ai_questions_used += 1
+
+    with st.chat_message("assistant"):
+        try:
+            with st.spinner("Analyzing recruitment data..."):
+                sql = generate_sql(question)
+                result = execute_read_only_query(sql)
+                answer = explain_results(question, result)
+
+            # Display a natural-language summary for single-number results
+            st.markdown(answer)
+
+            if result.shape[0] > 1:
+                st.dataframe(result, hide_index=True, use_container_width=True)
+
+            with st.expander("View SQL"):
+                st.code(sql, language="sql")
+
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": answer,
+                "sql": sql,
+                "data": result if result.shape[0] > 1 else None
+            })
+
+        except Exception:
+            st.error(
+                "Unable to answer this question. "
+                "Check your API configuration or try again."
+            )
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": "Unable to answer this question."
+            })
