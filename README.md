@@ -1,4 +1,5 @@
 # Talent Acquisition & Employee Lifecycle Analytics
+**[Launch the Live Dashboard](https://talent-lifecycle-analytics.streamlit.app/)**
 
 An end-to-end recruitment analytics portfolio project combining **Python, SQL, Streamlit, and Generative AI** to analyze hiring performance and support data-driven recruitment decisions.
 
