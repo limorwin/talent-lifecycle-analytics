@@ -7,6 +7,12 @@ import pandas as pd
 import streamlit as st
 import altair as alt
 
+import subprocess
+import sys
+import os
+import hmac
+from dotenv import load_dotenv
+
 from ai_assistant import generate_sql, execute_read_only_query, explain_results
 
 st.set_page_config(
@@ -18,7 +24,23 @@ st.set_page_config(
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+load_dotenv(PROJECT_ROOT / ".env")
+
 DB_PATH = PROJECT_ROOT / "data" / "processed" / "recruitment_synthetic.db"
+
+# Generate synthetic database if it does not exist
+if not DB_PATH.exists():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    with st.spinner("Generating synthetic recruitment data..."):
+        subprocess.run(
+            [
+                sys.executable,
+                str(PROJECT_ROOT / "src" / "generate_recruitment_data.py")
+            ],
+            cwd=PROJECT_ROOT,
+            check=True
+        )
 
 FUNNEL_SQL_PATH = (
     PROJECT_ROOT / "sql" / "analytics" / "recruitment_funnel.sql"
@@ -637,6 +659,34 @@ st.download_button(
 # AI Analytics Assistant
 st.divider()
 st.header("AI Recruitment Analytics Assistant")
+
+
+# Protect the AI assistant
+ai_password = os.getenv("AI_ACCESS_PASSWORD")
+
+if not os.getenv("OPENAI_API_KEY"):
+    st.info("The AI assistant is currently unavailable.")
+    st.stop()
+
+if ai_password:
+    if not st.session_state.get("ai_authenticated", False):
+        password = st.text_input(
+            "Enter password to access the AI assistant",
+            type="password"
+        )
+
+        if st.button("Unlock AI assistant"):
+            if hmac.compare_digest(
+                password.encode("utf-8"),
+                ai_password.encode("utf-8")
+            ):
+                st.session_state.ai_authenticated = True
+                st.rerun()
+            else:
+                st.error("Incorrect password.")
+
+        st.stop()
+
 
 MAX_QUESTIONS = 10
 
